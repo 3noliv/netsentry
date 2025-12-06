@@ -1,0 +1,221 @@
+﻿# rules.yaml
+
+severity_weights:
+  CRITICAL: 10
+  HIGH: 7
+  MEDIUM: 4
+  LOW: 1
+  INFO: 0
+
+# Penalización/bonificación por tipo de dispositivo (para más adelante)
+device_type_weights:
+  router: 1.5
+  camera: 1.3
+  nas: 1.3
+  iot: 1.2
+  pc: 1.0
+  unknown: 1.0
+
+# Reglas por ID de hallazgo (issue_id)
+rules:
+
+  TELNET-OPEN:
+    title: "Servicio Telnet expuesto"
+    category: "SERVICIOS_PELIGROSOS"
+    severity: "HIGH"
+    base_score: 7
+    description_template: "El puerto 23/TCP (Telnet) está abierto en {host}."
+    recommendation: >
+      Deshabilita Telnet y utiliza protocolos cifrados (por ejemplo, SSH).
+      Si el dispositivo no permite desactivar Telnet, considera aislarlo en una red separada (VLAN IoT).
+
+  FTP-OPEN:
+    title: "Servicio FTP sin cifrado"
+    category: "SERVICIOS_PELIGROSOS"
+    severity: "MEDIUM"
+    base_score: 5
+    description_template: "El puerto 21/TCP (FTP) está abierto en {host}."
+    recommendation: >
+      Sustituye FTP por SFTP o FTPS cuando sea posible.
+      Evita transferir credenciales o archivos sensibles usando FTP sin cifrar.
+
+  SMB-OPEN:
+    title: "Compartición SMB expuesta"
+    category: "EXPOSICION"
+    severity: "HIGH"
+    base_score: 7
+    description_template: "Se ha detectado el puerto 445/TCP abierto (SMB) en {host}."
+    recommendation: >
+      Revisa las carpetas compartidas, deshabilita el acceso invitado y restringe el servicio a la red necesaria.
+      Aplica contraseñas fuertes y actualiza el sistema para evitar vulnerabilidades conocidas.
+
+  HTTP_MISSING_SEC_HEADERS:
+    title: "Cabeceras de seguridad HTTP ausentes"
+    category: "BUENAS_PRACTICAS"
+    severity: "MEDIUM"
+    base_score: 4
+    description_template: >
+      La respuesta HTTP de {host} no incluye cabeceras de seguridad recomendadas
+      (CSP, X-Frame-Options, X-Content-Type-Options, HSTS).
+    recommendation: >
+      Configura el servidor para enviar cabeceras de seguridad HTTP (HSTS, CSP, X-Frame-Options,
+      X-Content-Type-Options) y mitigar ataques de clickjacking, MIME sniffing y otros.
+
+  HTTP_NO_TLS:
+    title: "Servicio HTTP sin TLS"
+    category: "CIFRADO"
+    severity: "HIGH"
+    base_score: 7
+    description_template: "Servicio HTTP sin cifrado (sin TLS) accesible en {host}."
+    recommendation: >
+      Habilita HTTPS con un certificado válido y configura una redirección
+      automática de HTTP a HTTPS. Si el dispositivo no soporta TLS, limita
+      el acceso solo desde una red de administración o ponlo detrás de un
+      reverse-proxy con TLS.
+
+  HTTP_NO_HSTS:
+    title: "HTTPS sin HSTS"
+    category: "CIFRADO"
+    severity: "MEDIUM"
+    base_score: 5
+    description_template: "Servicio HTTPS en {host} sin cabecera HSTS configurada."
+    recommendation: >
+      Activa la cabecera Strict-Transport-Security (HSTS) para obligar a los
+      navegadores a usar siempre HTTPS y reducir el riesgo de ataques de
+      downgrade o mixtos HTTP/HTTPS.
+
+  HTTP_BASIC_AUTH:
+    title: "Uso de autenticación HTTP Basic"
+    category: "AUTENTICACION"
+    severity: "MEDIUM"
+    base_score: 4
+    description_template: "El servicio web en {host} utiliza autenticación HTTP Basic."
+    recommendation: >
+      Evita HTTP Basic sin TLS. Si es posible, migra a mecanismos de
+      autenticación más robustos (formularios con sesiones seguras, OAuth,
+      etc.) y asegúrate de que todo el acceso se haga siempre bajo HTTPS.
+
+  HTTP_LOGIN_OVER_HTTP:
+    title: "Formulario de login sin cifrar (HTTP)"
+    category: "AUTENTICACION"
+    severity: "HIGH"
+    base_score: 8
+    description_template: "Se ha detectado un formulario de login servido por HTTP en {host}."
+    recommendation: >
+      No sirvas formularios de autenticación sobre HTTP. Obliga a usar
+      siempre HTTPS en las páginas de login y en todo el flujo de sesión
+      para evitar robo de credenciales.
+
+  HTTP_DIR_LISTING:
+    title: "Listado de directorios habilitado"
+    category: "EXPOSICION"
+    severity: "MEDIUM"
+    base_score: 4
+    description_template: "El servidor web en {host} muestra un listado de directorios."
+    recommendation: >
+      Desactiva la opción de listado de directorios en la configuración del
+      servidor web (Options -Indexes, autoindex off, etc.) y expón solo los
+      ficheros necesarios mediante rutas explícitas.
+
+  GENERIC_INFO_SERVICE:
+    title: "Servicio web accesible"
+    category: "EXPOSICION"
+    severity: "LOW"
+    base_score: 1
+    description_template: "Se ha detectado un servicio web accesible en {host}."
+    recommendation: >
+      Revisa el contenido publicado en el servicio web y verifica que no
+      expone información sensible (backups, paneles de administración,
+      ficheros de configuración, etc.).
+
+  TELNET_PLAINTEXT:
+    title: "Servicio Telnet en texto claro"
+    category: "SERVICIOS_PELIGROSOS"
+    severity: "HIGH"
+    base_score: 8
+    description_template: "El puerto 23/TCP (Telnet) está abierto y sin cifrado en {host}."
+    recommendation: >
+      Deshabilita Telnet siempre que sea posible y utiliza SSH u otro
+      protocolo cifrado. Si no puedes desactivarlo, aísla el dispositivo en
+      una VLAN específica y restringe el acceso solo a equipos de
+      administración.
+
+  FTP_PLAINTEXT:
+    title: "Servicio FTP en texto claro"
+    category: "SERVICIOS_PELIGROSOS"
+    severity: "MEDIUM"
+    base_score: 5
+    description_template: "El puerto 21/TCP (FTP) está abierto en {host} sin cifrado."
+    recommendation: >
+      Sustituye FTP por SFTP o FTPS. Evita transferir credenciales o archivos
+      sensibles mediante FTP en texto plano y restringe el acceso al
+      servicio únicamente a los hosts necesarios.
+
+  TLS-OLD-VERSION:
+    title: "Versión TLS antigua/depreciada"
+    category: "CIFRADO"
+    severity: "HIGH"
+    base_score: 8
+    description_template: "El servicio en {host} negocia TLS 1.0/1.1 o cifrados débiles."
+    recommendation: >
+      Deshabilita TLS 1.0/1.1 y cifra débil. Limita la configuración a TLS 1.2/1.3
+      y conjuntos de cifrado recomendados.
+
+  CERT-SELF-SIGNED:
+    title: "Certificado autofirmado"
+    category: "CIFRADO"
+    severity: "MEDIUM"
+    base_score: 3
+    description_template: "El certificado TLS presentado por {host} es autofirmado."
+    recommendation: >
+      Sustituye el certificado por uno emitido por una autoridad de confianza si el servicio
+      es accedido por usuarios finales. Para servicios internos, documenta el uso de certificados internos.
+
+  UPNP-SSDP-EXPOSED:
+    title: "UPnP expuesto en la red"
+    category: "CONFIG_ROUTER"
+    severity: "HIGH"
+    base_score: 8
+    description_template: "Se ha detectado un servicio UPnP/SSDP accesible en {host}."
+    recommendation: >
+      Deshabilita UPnP en el router o limítalo a dispositivos de confianza.
+      UPnP puede abrir puertos automáticamente en el cortafuegos sin conocimiento del usuario.
+
+  MQTT-ANON-ACCESS:
+    title: "Broker MQTT permite acceso anónimo"
+    category: "SERVICIOS_IOT"
+    severity: "HIGH"
+    base_score: 8
+    description_template: "El broker MQTT en {host} acepta conexiones sin autenticación."
+    recommendation: >
+      Habilita autenticación en el broker MQTT y utiliza TLS si es posible.
+      Segmenta la red de dispositivos IoT y limita el acceso al broker.
+
+  RTSP-NO-AUTH:
+    title: "RTSP sin autenticación"
+    category: "SERVICIOS_IOT"
+    severity: "HIGH"
+    base_score: 7
+    description_template: "Se ha detectado un servidor RTSP en {host} sin autenticación."
+    recommendation: >
+      Habilita autenticación en el servidor RTSP o restringe el acceso mediante firewall/VLAN.
+
+  ROUTER-ADMIN-HTTP:
+    title: "Panel de administración del router sin HTTPS"
+    category: "CONFIG_ROUTER"
+    severity: "HIGH"
+    base_score: 9
+    description_template: "El panel de administración del router en {host} está disponible solo por HTTP."
+    recommendation: >
+      Habilita el acceso al panel mediante HTTPS y, si es posible, restringe el acceso
+      únicamente desde la LAN cableada o desde una subred de administración.
+
+  INFO-DEVICE-FINGERPRINT:
+    title: "Identificación de tipo de dispositivo"
+    category: "INVENTARIO"
+    severity: "INFO"
+    base_score: 0
+    description_template: "El host {host} se ha clasificado como tipo '{device_type}'."
+    recommendation: >
+      Usa esta información para mantener un inventario de dispositivos y revisar su configuración periódicamente.
+

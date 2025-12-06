@@ -1,0 +1,6 @@
+﻿scan:
+  timeout_ms: 500
+  default_ports: [22, 80, 443]
+report:
+  include_closed: false
+

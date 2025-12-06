@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "netsentry"
+version = "0.1.0"
+description = "NetSentry – CLI de descubrimiento y evaluación segura de servicios en LAN"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+  { name = "Iván Martínez Sánchez" }
+]
+
+dependencies = [
+  "typer>=0.12",
+  "rich>=13.7",
+  "pydantic>=2.7",
+  "jinja2>=3.1",
+  "pyyaml>=6.0",
+  "requests>=2.32"
+]
+
+[project.scripts]
+sentry = "netsentry.cli:app"
+
+[tool.setuptools]
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["netsentry*"]
+
+[tool.setuptools.package-data]
+netsentry = [
+  "rules/*.yaml",
+  "report/templates/*.j2"
+]

@@ -1,0 +1,358 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>sentry - Informe de escaneo {{ scan.scan_id }}</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 2rem;
+      background: #0f172a;
+      color: #e5e7eb;
+    }
+    h1, h2, h3 {
+      color: #f97316;
+    }
+    .card {
+      background: #020617;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+      border: 1px solid #1e293b;
+    }
+    .meta {
+      font-size: 0.9rem;
+      color: #9ca3af;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0.5rem 0 1rem 0;
+      font-size: 0.9rem;
+    }
+    th, td {
+      border: 1px solid #1f2937;
+      padding: 0.4rem 0.6rem;
+      text-align: left;
+    }
+    th {
+      background: #111827;
+    }
+    tr:nth-child(even) td {
+      background: #020617;
+    }
+    tr:nth-child(odd) td {
+      background: #030712;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .badge-high {
+      background: #b91c1c;
+      color: #fee2e2;
+    }
+    .badge-medium {
+      background: #b45309;
+      color: #ffedd5;
+    }
+    .badge-low {
+      background: #15803d;
+      color: #dcfce7;
+    }
+    .badge-none {
+      background: #4b5563;
+      color: #e5e7eb;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+    .pill {
+      padding: 0.3rem 0.7rem;
+      border-radius: 999px;
+      background: #111827;
+      border: 1px solid #1f2937;
+      font-size: 0.8rem;
+    }
+    .host-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .section {
+      margin-top: 1rem;
+    }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      background: #111827;
+      padding: 0.1rem 0.3rem;
+      border-radius: 4px;
+    }
+    .footer {
+      margin-top: 2rem;
+      font-size: 0.8rem;
+      color: #6b7280;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  {# Adaptador: scoring puede venir dentro de scan o como variable suelta #}
+  {% if scan.scoring is defined and scan.scoring %}
+    {% set scoring_obj = scan.scoring %}
+  {% elif scoring is defined and scoring %}
+    {% set scoring_obj = scoring %}
+  {% else %}
+    {% set scoring_obj = None %}
+  {% endif %}
+
+  <div class="card">
+    <h1>sentry - Informe de escaneo</h1>
+    <div class="meta">
+      <p><strong>ID de escaneo:</strong> {{ scan.scan_id }}</p>
+      <p><strong>Red:</strong> {{ scan.network or "N/A (host único)" }}</p>
+      <p><strong>Inicio:</strong> {{ scan.started_at }}</p>
+      <p><strong>Fin:</strong> {{ scan.finished_at }}</p>
+      <p><strong>Generado:</strong> {{ generated_at }}</p>
+    </div>
+  </div>
+
+  {# Contadores de resumen clásico #}
+  {% set ns = namespace(
+    hosts_with_findings=0,
+    high_count=0,
+    medium_count=0,
+    low_count=0
+  ) %}
+
+  {% for h in scan.hosts %}
+    {% if h.findings and h.findings|length > 0 %}
+      {% set ns.hosts_with_findings = ns.hosts_with_findings + 1 %}
+      {% if h.risk_level() == "HIGH" %}
+        {% set ns.high_count = ns.high_count + 1 %}
+      {% elif h.risk_level() == "MEDIUM" %}
+        {% set ns.medium_count = ns.medium_count + 1 %}
+      {% elif h.risk_level() == "LOW" %}
+        {% set ns.low_count = ns.low_count + 1 %}
+      {% endif %}
+    {% endif %}
+  {% endfor %}
+
+  <div class="card">
+    <h2>Resumen global</h2>
+    <div class="header">
+      <div>
+        <p><strong>Número de hosts analizados:</strong> {{ scan.hosts|length }}</p>
+        <p><strong>Hosts con hallazgos:</strong> {{ ns.hosts_with_findings }}</p>
+
+        {# Score avanzado global, si existe #}
+        {% if scoring_obj %}
+          <p>
+            <strong>Score total de riesgo (reglas avanzadas):</strong>
+            {{ "%.1f"|format(scoring_obj.total_score) }}
+          </p>
+        {% endif %}
+      </div>
+      <div>
+        <span class="pill">Riesgo ALTO: {{ ns.high_count }}</span>
+        <span class="pill">Riesgo MEDIO: {{ ns.medium_count }}</span>
+        <span class="pill">Riesgo BAJO: {{ ns.low_count }}</span>
+      </div>
+    </div>
+
+    {# Tabla de score por host, si hay scoring avanzado #}
+    {% if scoring_obj and scoring_obj.hosts %}
+      <h3>Score por host (reglas avanzadas)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Host</th>
+            <th>Tipo de dispositivo</th>
+            <th>Score total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for hs in scoring_obj.hosts %}
+            <tr>
+              <td>{{ hs.host }}</td>
+              <td>{{ hs.device_type }}</td>
+              <td>{{ "%.1f"|format(hs.total_score) }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+
+    {# Tabla de score por categoría global #}
+    {% if scoring_obj and scoring_obj.categories %}
+      <h3>Score por categoría (global)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Categoría</th>
+            <th>Score acumulado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for cat, val in scoring_obj.categories.items() %}
+            <tr>
+              <td>{{ cat }}</td>
+              <td>{{ "%.1f"|format(val) }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  </div>
+
+  {# Detalle por host #}
+  {% for host in scan.hosts %}
+    {# Buscamos el objeto de scoring para este host (por IP) #}
+    {% set host_scoring = None %}
+    {% if scoring_obj and scoring_obj.hosts %}
+      {% for hs in scoring_obj.hosts %}
+        {% if hs.host == host.ip %}
+          {% set host_scoring = hs %}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+
+    <div class="card">
+      <div class="host-title">
+        <div>
+          <h2>Host: {{ host.ip }}{% if host.hostname %} ({{ host.hostname }}){% endif %}</h2>
+          <p class="meta">Tipo probable de dispositivo: {{ host.device_type() }}</p>
+        </div>
+        <div>
+          {% set level = host.risk_level() %}
+          {% if level == "HIGH" %}
+            <span class="badge badge-high">Riesgo: HIGH</span>
+          {% elif level == "MEDIUM" %}
+            <span class="badge badge-medium">Riesgo: MEDIUM</span>
+          {% elif level == "LOW" %}
+            <span class="badge badge-low">Riesgo: LOW</span>
+          {% else %}
+            <span class="badge badge-none">Riesgo: NONE</span>
+          {% endif %}
+          <span class="pill">Score (clásico): {{ host.risk_score() }}</span>
+          {% if host_scoring %}
+            <span class="pill">Score (reglas): {{ "%.1f"|format(host_scoring.total_score) }}</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Puertos detectados</h3>
+        {% if host.ports %}
+          <table>
+            <thead>
+              <tr>
+                <th>Puerto</th>
+                <th>Protocolo</th>
+                <th>Servicio</th>
+                <th>Producto</th>
+                <th>Versión</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in host.ports %}
+                <tr>
+                  <td>{{ p.port }}</td>
+                  <td>{{ p.protocol }}</td>
+                  <td>{{ p.service or "-" }}</td>
+                  <td>{{ p.product or "-" }}</td>
+                  <td>{{ p.version or "-" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p><em>No se han detectado puertos básicos abiertos.</em></p>
+        {% endif %}
+      </div>
+
+      {# Resumen de score por categoría para este host #}
+      {% if host_scoring and host_scoring.categories %}
+        <div class="section">
+          <h3>Resumen de score por categoría (host)</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Categoría</th>
+                <th>Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for cat, val in host_scoring.categories.items() %}
+                <tr>
+                  <td>{{ cat }}</td>
+                  <td>{{ "%.1f"|format(val) }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+
+      <div class="section">
+        <h3>Hallazgos</h3>
+        {% if host.findings %}
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Severidad</th>
+                <th>Puerto</th>
+                <th>Título</th>
+                <th>Detalles</th>
+                <th>Recomendación</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for f in host.findings %}
+                {% set sev = (f.severity|string).upper() %}
+                <tr>
+                  <td>{{ f.id }}</td>
+                  <td>
+                    {% if sev == "HIGH" %}
+                      <span class="badge badge-high">HIGH</span>
+                    {% elif sev == "MEDIUM" %}
+                      <span class="badge badge-medium">MEDIUM</span>
+                    {% elif sev == "LOW" %}
+                      <span class="badge badge-low">LOW</span>
+                    {% else %}
+                      <span class="badge badge-none">{{ sev }}</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ f.port or "-" }}</td>
+                  <td>{{ f.title }}</td>
+                  <td>{{ f.details }}</td>
+                  <td>{{ f.recommendation }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p><em>No se han identificado malas prácticas en este host.</em></p>
+        {% endif %}
+      </div>
+    </div>
+  {% endfor %}
+
+  <div class="footer">
+    <p>sentry CLI - Análisis de seguridad básico para redes locales e IoT doméstico.</p>
+  </div>
+</body>
+</html>
+

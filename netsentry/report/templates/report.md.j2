@@ -1,0 +1,75 @@
+﻿# sentry - Informe de escaneo
+
+**ID de escaneo:** {{ scan.scan_id }}  
+**Red:** {{ scan.network or "N/A" }}  
+**Inicio:** {{ scan.started_at }}  
+**Fin:** {{ scan.finished_at }}  
+**Generado:** {{ generated_at }}
+
+---
+
+## Resumen global
+
+{% set ns = namespace(
+  hosts_with_findings=0,
+  high_count=0,
+  medium_count=0,
+  low_count=0
+) %}
+
+{% for h in scan.hosts %}
+  {% if h.findings and h.findings|length > 0 %}
+    {% set ns.hosts_with_findings = ns.hosts_with_findings + 1 %}
+    {% if h.risk_level() == "HIGH" %}
+      {% set ns.high_count = ns.high_count + 1 %}
+    {% elif h.risk_level() == "MEDIUM" %}
+      {% set ns.medium_count = ns.medium_count + 1 %}
+    {% elif h.risk_level() == "LOW" %}
+      {% set ns.low_count = ns.low_count + 1 %}
+    {% endif %}
+  {% endif %}
+{% endfor %}
+
+- Número de hosts analizados: **{{ scan.hosts|length }}**
+- Hosts con hallazgos: **{{ ns.hosts_with_findings }}**
+- Hosts con riesgo **ALTO**: {{ ns.high_count }}
+- Hosts con riesgo **MEDIO**: {{ ns.medium_count }}
+- Hosts con riesgo **BAJO**: {{ ns.low_count }}
+
+---
+
+{% for host in scan.hosts %}
+## Host: {{ host.ip }}{% if host.hostname %} ({{ host.hostname }}){% endif %}
+
+**Tipo probable de dispositivo:** {{ host.device_type() }}  
+**Riesgo global:** {{ host.risk_level() }}  
+**Score de riesgo:** {{ host.risk_score() }}  
+
+### Puertos detectados
+
+{% if host.ports %}
+| Puerto | Protocolo | Servicio | Producto | Versión |
+|--------|-----------|----------|----------|---------|
+{% for p in host.ports %}
+| {{ p.port }} | {{ p.protocol }} | {{ p.service or "-" }} | {{ p.product or "-" }} | {{ p.version or "-" }} |
+{% endfor %}
+{% else %}
+*(No se han detectado puertos básicos abiertos)*
+{% endif %}
+
+### Hallazgos
+
+{% if host.findings %}
+| ID | Título | Severidad | Puerto | Detalles | Recomendación |
+|----|--------|-----------|--------|----------|----------------|
+{% for f in host.findings %}
+| {{ f.id }} | {{ f.title }} | {{ f.severity.value }} | {{ f.port or "-" }} | {{ f.details }} | {{ f.recommendation }} |
+{% endfor %}
+{% else %}
+*(No se han identificado malas prácticas en este host)*  
+{% endif %}
+
+---
+
+{% endfor %}
+
