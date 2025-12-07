@@ -60,6 +60,8 @@ Cada hallazgo se clasifica por:
 # Requisitos
 
 * Python **3.10+** (recomendado 3.11 o superior)
+* `pip` disponible
+* (Opcional pero recomendado) [`pipx`](https://pypa.github.io/pipx/) para instalar la CLI de forma aislada
 * Windows, Linux o macOS
 * Estar conectado a la red que se desea analizar
 
@@ -67,11 +69,27 @@ Cada hallazgo se clasifica por:
 
 # ⚙️ Instalación (1 comando)
 
+Clona el repositorio y ejecuta el instalador:
+
 ## 🔹 Linux / macOS
 
 ```bash
-chmod +x install.sh
+git clone https://github.com/3noliv/netsentry.git
+cd netsentry
 ./install.sh
+```
+
+El script intentará usar pipx si está disponible.
+
+Otra forma:
+```bash
+sudo apt update
+sudo apt install pipx -y
+pipx ensurepath   # cierra y abre la terminal si te lo pide
+
+git clone https://github.com/tu-usuario/netsentry.git
+cd netsentry
+pipx install .
 ```
 
 ## 🔹 Windows (PowerShell)
